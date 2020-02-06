@@ -1,0 +1,456 @@
+<?php 
+require_once 'sqlheader.php';
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+
+$query = "SELECT A.location_id, A.visit_date, A.jobId, A.comp_ID, A.scheme_ID, C.companyName, LD.address, U.FirstName, U.LastName, A.user_id, SC.schemeName, A.scheme_ID, A.score
+            FROM teachcom_robyn.assignment A
+            INNER JOIN teachcom_robyn.company C ON A.comp_ID = C.companyID
+            INNER JOIN teachcom_robyn.location_data LD ON A.comp_ID = LD.comp_id
+            INNER JOIN teachcom_robyn.users U ON A.user_id = U.UserID 
+            INNER JOIN teachcom_robyn.scheme SC ON A.scheme_ID = SC.schemeId";
+                
+if ($result = mysqli_query($conn, $query)) {
+    while($row = $result->fetch_assoc()){
+        $jobnumber[$row['jobId']] = $row;
+        $user[$row['user_id']] = ['name'=>$row['FirstName']." ".$row['LastName'], 'id' => $row['user_id'] ]; 
+        $scheme[$row['scheme_ID']] = ['name'=>$row['schemeName'], 'id' => $row['scheme_ID'] ];
+        $company[$row['comp_ID']] = ['name' =>$row['companyName'], 'id' => $row['comp_ID'] ];
+        $date[$row['visit_date']] = ['visitdate' =>['visit_date']];
+        $location[$row['location_id']] = ['addressname' =>$row['address'], 'id' =>['location_id']];
+        $score[$row['score']] = ['visitscore' =>['score']];
+    }
+}
+
+//p_var_dump(reset($jobnumber));
+
+$jobs = [$jobnumber, $location, $user, $scheme, $company, $score, $date];
+
+        
+        
+$query = "SELECT UserID, FirstName, LastName
+            FROM teachcom_robyn.users";
+            
+if ($result = mysqli_query($conn, $query)) {
+    while($row = $result->fetch_assoc()){
+        $user[$row['UserID']] = ['name'=>$row['FirstName']." ".$row['LastName'], 'id' => $row['UserID'] ];
+    }
+}
+
+
+
+/*if(isset($_GET['newName'])) {
+    echo" to here!!!";
+    $query = 'UPDATE teachcom_robyn.scheme
+    SET schemeName = "'.$_GET['newName'].'"
+    WHERE schemeId=58 ';
+    
+     mysqli_query($conn, $query);
+}*/
+
+ /* new query to add scheme name to datat base when job is created */ 
+ 
+ 
+ $query= "SELECT schemeName, schemeId
+        FROM teachcom_robyn.scheme S";
+ 
+ 
+ if ($result = mysqli_query($conn, $query)) {
+    while($row = $result->fetch_assoc()){
+        $scheme[$row['schemeId']] = ['name'=>$row['schemeName'], 'id' => $row['schemeId'] ];
+    }
+}
+
+
+$query= "SELECT companyName, companyID
+            FROM teachcom_robyn.company";
+            
+if ($result = mysqli_query($conn, $query)) {
+        while($row = $result->fetch_assoc()){
+                $company[$row['companyID']] = ['name' =>$row['companyName'], 'id' => $row['companyID'] ];
+        }
+}
+
+
+
+
+
+
+
+$query = "SELECT LD.address, LD.location_id
+                FROM teachcom_robyn.company C 
+                INNER JOIN teachcom_robyn.location_data LD ON  LD.comp_id = C.companyID ";
+
+if ($result = mysqli_query($conn, $query)) {
+    while($row = $result->fetch_assoc()){
+        $location[$row['location_id']] = ['name'=>$row['address'], 'id' =>['location_id']];
+
+    }
+}
+
+
+$wave = [4 => ['waveName' => 'Sept'], 5 =>  ['waveName' => 'Oct']];
+
+
+
+if(isset($_GET['locId'])) {
+    foreach($jobs as $id => $job) {
+        if($job['loc'] != $_GET['locId']) {
+            unset($jobs[$id]);
+        }
+    }
+}
+
+
+if(isset ($_GET['vn'])){
+    foreach($jobs as $jobId =>$job){
+        if($job['vn'] !=$_GET['vn']) {
+            unset($jobs[$jobId]);
+        }
+    }
+}
+
+
+if(isset($_GET['compId'])){
+    foreach($jobs as $comp =>$job){
+        if($job['compId'] !=$_GET['compId']) {
+            unset($jobs[$comp]);
+        }
+    }
+}
+
+
+
+if(isset($_GET['visitscore'])) {
+    foreach($jobs as $score =>$job){
+        if($job['visitscore'] <=49) {
+            unset($job['visitscore']);
+            
+               } else if($job['visitscore'] >50)
+               {
+                    echo($job['visitscore']);
+               
+                
+            }
+        }
+    }
+
+
+if(isset($_GET['jfscore'])) { // this is the variable I have passed, so checking if its sety
+    foreach($jobs as $jobId =>$job){  // looping through my job array again
+        $score = $job['ps'] / $job['tp'] * 100; // working out what my score is
+        if($_GET['jfscore'] == 50) { //checking if the filter is set to 50 ---
+            if($score < 50) {
+                 unset($jobs[$jobId]);   // unset if jfscore is set, and is set to 50, and $score is less that 50 
+            }
+        } else { // note - there are 2 possible choices for the filter, less than or more that, as we have checked if 
+                //its set on line 95, I can just assume if its not 50, it must be 0, so just act on it .. if I was
+                // being thourgh I would have done this as elseif ($_GET['jfscore'] == 0)
+            if($score > 50) {
+                unset($jobs[$jobId]);   // unset if jfscore is set, and is NOT set to 50, and $score is less that 50 
+        
+            }
+        }
+    }
+}
+
+
+ ?>
+<html>
+  <head>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="../bootstrap/bootstrap.css">
+<link rel="stylesheet" href="../css/extras.css">
+<!-- jQuery library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<!-- Popper JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+
+<!-- Latest compiled JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<!-- font awesome -->
+<script src="https://kit.fontawesome.com/0b41f908bd.js" crossorigin="anonymous"></script>
+
+
+</head>
+<body>
+<div class="container">
+    <!-- Content here -->
+
+    
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand" href="#">Reporting Dashboard</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        <ul class="navbar-nav">
+          
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Location Name
+            </a>
+
+<?php $query= "SELECT companyName 
+    FROM teachcom_robyn.company
+    ORDER BY companyName ASC"; 
+    
+    ?>
+
+
+
+            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                <!-- foreach -->
+              <a class="dropdown-item" href="$query"> <?= $compname['companyName'] ?> </a>
+               <!-- endithere -->
+           
+               
+               </div>
+             </li>
+             
+               <li class="nav-item dropdown">
+               <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Wave name 
+            </a>
+               <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                   <a class="dropdown-item" href="?vn=4">September</a>
+                   <a class="dropdown-item" href="?vn=5">October</a>
+            
+          
+           <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Company
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                <a class="dropdown-item" href="?compId=129">William Nill</a>
+                <a class="dropdown-item" href="?compId=1039">Travelbobs</a>
+                <a class="dropdown-item" href="?compId=620">Mean Kings</a>
+
+            <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              User
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                <a class="dropdown-item" href="?userID=1234">Mick</a>
+                <a class="dropdown-item" href="?userID=1235">Sam</a>
+                <a class="dropdown-item" href="?userID=1236">Kev</a>
+                <a class="dropdown-item" href="?userID=1237">Ben</a>
+                <a class="dropdown-item" href="?userID=1238">Bob</a>
+            
+     
+         
+         <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Visit Score
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                <!-- Just need to pass the number your lookign for here, do the logic in the php bit of the code -->
+                <!-- <a class="dropdown-item" href= "?score=up50" > More then 50% </a> --->
+                <!-- <a class="dropdown-item" href= "?score=down50" > More then 50% </a> --->
+                <a class="dropdown-item" href= "?$score=up50" > More then 50% </a>
+                <a class="dropdown-item" href= "?$score=down50" > Less then 50% </a>
+            </div>  
+        
+           <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Visit Score2
+            </a>
+            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+
+                <a class="dropdown-item" href= "?jfscore=50" > More then 50% </a> <!-- try not to use $ in a get as it will just confuse later! -->
+                <a class="dropdown-item" href= "?jfscore=0" > Less then 50% </a>
+            </div>  
+            
+            <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="newjob.php" id="navbarDropdownMenuLink" >
+              Enter a new job 
+            </a>
+      
+      </div>
+    </nav>
+       
+       
+        <!-- This is a comment I got the bootstrap stuff from https://www.w3schools.com/bootstrap4/bootstrap_colors.asp --->
+        <div class="row">
+       
+            <div class="col-md-12 m-12 " style="margin-top:30px">
+            </div>
+            
+           <div class="col-md-12" style="margin-top:30px">
+                <table style="margin-right 30px" class="col-md-3 bg-primary">
+                    <tr>
+                        <th><h4>Job ID</h4></th>
+                        <th><h4>Visit date</h4></th>
+                        <th><h4>Location ID</h4></th>
+                        <th><h4>Location name</h4></th>
+                        <th><h4>Company ID</h4></th>
+                        <th><h4>Company<h4></th>
+                        <th><h4>Visit score</h4></th>
+                        <th><h4>User</h4></th>
+                        
+                       
+                    </tr>
+                     <?php foreach($jobnumber as $jobid => $job) { ?>
+                     
+                    <tr div class="col-sm-2 bg-dark text-primary">
+                        <td><?= $jobid ?></td>
+                        <td><?= $job['visit_date']?></td>
+                        <td><?= $job['location_id']?></td>
+                        <td><?= $location[$job['location_id']]['name']?></td>
+                        <td><?= $job['comp_ID'] ?></td>
+                        <td><?= $company[$job['comp_ID']]['name']?></td>
+                        <td><?= $job['score'] ?></td>
+                        <td><?= $user[$job['user_id']]['name'] ?></td>
+                        
+                        
+                        
+                    </div></tr>
+                
+                    <?php } ?>
+                </table>
+            </div>    
+  
+                
+                
+           
+              <div class="col-md-12 m-12 " style="margin-top:30px">
+
+
+<form class="form-horizontal" action="savejob.php" method="POST" role="form">
+<fieldset>
+
+<!-- Form Name -->
+<legend>New Job</legend>
+
+<!-- Select Basic -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="selectbasic">Location</label>
+  <div class="col-md-4">
+    <select id="selectbasic" name="locationid" class="form-control">
+        
+        <?php foreach($location as $key => $loc) { ?>
+        
+      <option value="<?php echo $key ?>"> <?= $loc ['name'] ?> </option>
+     
+      <?php } ?>
+      
+    </select>
+  </div>
+  
+</div>
+
+
+<!-- Select Basic -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="selectbasic">Company</label>
+  <div class="col-md-4">
+    <select id="selectbasic" name="companyname" class="form-control">
+        
+        <?php foreach($company as $key => $comp) { ?>
+        
+      <option value="<?php echo $key ?>"> <?= $comp['name'] ?> </option>
+     
+      <?php } ?>
+      
+    </select>
+  </div>
+</div>
+
+
+<!-- Select Basic -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="selectbasic">Scheme</label>
+  <div class="col-md-4">
+    <select id="selectbasic" name="schemeid" class="form-control">
+        
+        <?php foreach($scheme as $key => $schemename) { ?>
+        
+      <option value="<?php echo $key ?>"> <?= $schemename['name'] ?> </option>
+     
+      <?php } ?>
+      
+    </select>
+  </div>
+</div>
+
+
+
+<!-- Text input-->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="textinput">Date</label>  
+  <div class="col-md-4">
+  <input id="textinput" name="date" type="text" placeholder="YYYY-MM-DD" class="form-control input-md">
+    
+  </div>
+</div>
+
+<!-- Select Basic -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="selectbasic">User</label>
+  <div class="col-md-4">
+    <select id="selectbasic" name="username" class="form-control">
+        
+         <?php foreach($user as $key => $username) { ?>
+         
+      <option value="<?= $key ?> "> <?= $username['name'] ?> </option>
+      
+       <?php } ?>
+       
+    </select>
+  </div>
+</div>
+
+<!-- Text input-->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="textinput">Score</label>  
+  <div class="col-md-4">
+  <input id="textinput" name="score" type="text" placeholder="Score" class="form-control input-md">
+    
+  </div>
+</div>
+
+<!-- Button -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="singlebutton"></label>
+  <div class="col-md-4">
+    <button id="singlebutton" name="submit" class="btn btn-primary">Submit</button>
+  </div>
+</div>
+
+</fieldset>
+</form>
+
+
+
+            </div>
+  </body>
+  </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
